@@ -1,204 +1,277 @@
 \chapter{User documentation}
 \label{ch:user}
 
-Lorem ipsum dolor sit amet $\mathbb{N}$\nomenclature{$\mathbb{N}$}{Set of natural numbers}, consectetur adipiscing elit. Duis nibh leo, dapibus in elementum nec, aliquet id sem. Suspendisse potenti. Nullam sit amet consectetur nibh. Donec scelerisque varius turpis at tincidunt. Cras a diam in mauris viverra vehicula. Vivamus mi odio, fermentum vel arcu efficitur, lacinia viverra nibh. Aliquam aliquam ante mi, vel pretium arcu dapibus eu. Nulla finibus ante vel arcu tincidunt, ut consectetur ligula finibus. Mauris mollis lectus sed ipsum bibendum, ac ultrices erat dictum. Suspendisse faucibus euismod lacinia $\mathbb{Z}$\nomenclature{$\mathbb{Z}$}{Set of integer numbers}.
+This chapter provides comprehensive user documentation for the code coverage visualization feature in CodeChecker. It is designed to assist end-users in installing, operating, and effectively utilizing the feature to enhance their code quality assessment workflow.
 
+\section{Task Description}
 
-\section{Enumerations and lists}
+The code coverage visualization feature extends CodeChecker's static analysis capabilities by integrating test coverage metrics. The software enables developers to generate test coverage data, store it alongside static analysis results, and visualize coverage information through an interactive web interface. This integration allows users to identify code regions with both static analysis warnings and insufficient test coverage, supporting more informed decisions about code quality and testing priorities.
 
-Etiam vel odio ante. Etiam pulvinar nibh quis massa auctor congue. Pellentesque quis odio vitae sapien molestie vestibulum sit amet et quam. Pellentesque vel dui eget enim hendrerit finibus at sit amet libero. Quisque sollicitudin ultrices enim, nec porta magna imperdiet vitae. Cras condimentum nunc dui, eget molestie nunc accumsan vel.
+\section{Target Audience}
 
+This feature is designed for software developers, quality assurance engineers, and development teams who:
 \begin{itemize}
-	\item Fusce in aliquet neque, in pretium sem.
-	\item Donec tincidunt tellus id lectus pretium fringilla.
-	\item Nunc faucibus, erat pretium tempus tempor, tortor mi fringilla neque, ac congue ex dui vitae mauris.
+    \item Use CodeChecker for static code analysis
+    \item Maintain test suites for their codebases
+    \item Need to assess the relationship between static analysis findings and test coverage
+    \item Want to identify untested code regions that may contain potential defects
 \end{itemize}
 
-Donec dapibus sodales ante, at scelerisque nunc laoreet sit amet. Mauris porttitor tincidunt neque, vel ullamcorper neque pulvinar et. Integer eu lorem euismod, faucibus lectus sed, accumsan felis. Nunc ornare mi at augue vulputate, eu venenatis magna mollis. Nunc sed posuere dui, et varius nulla. Sed mollis nibh augue, eget scelerisque eros ornare nec.
+The feature is particularly valuable in continuous integration environments where both static analysis and test coverage metrics are regularly monitored.
+
+\section{System Requirements}
+
+\subsection{Minimum Requirements}
+
+\begin{itemize}
+    \item \textbf{Operating System}: Linux or macOS (the feature is compatible with CodeChecker's supported platforms)
+    \item \textbf{CodeChecker}: Version compatible with the coverage feature (latest stable release recommended)
+    \item \textbf{Compiler}: GCC or Clang with coverage instrumentation support (typically version 4.8+ for GCC, or any recent Clang version)
+    \item \textbf{Coverage Tools}: 
+    \begin{itemize}
+        \item \texttt{gcov} (included with GCC/Clang)
+        \item \texttt{lcov} (for processing coverage data)
+    \end{itemize}
+    \item \textbf{Web Browser}: Modern browser with JavaScript enabled (Chrome, Firefox, Safari, or Edge)
+    \item \textbf{Database}: PostgreSQL or SQLite (as required by CodeChecker)
+\end{itemize}
+
+\subsection{Optimal Requirements}
+
+\begin{itemize}
+    \item \textbf{Operating System}: Linux (Ubuntu 20.04+ or similar) or macOS 11+
+    \item \textbf{CodeChecker}: Latest version with all updates
+    \item \textbf{Compiler}: GCC 9+ or Clang 10+ for improved coverage instrumentation
+    \item \textbf{Memory}: 4GB RAM minimum, 8GB recommended for large codebases
+    \item \textbf{Disk Space}: Sufficient space for coverage data files and database storage
+    \item \textbf{Network}: Stable connection for web interface access (if using remote CodeChecker server)
+\end{itemize}
+
+\section{Installation}
+
+The code coverage feature is integrated into CodeChecker and does not require separate installation. However, ensure that the following prerequisites are met:
+
+\subsection{Installing Coverage Tools}
+
+On \textbf{Ubuntu/Debian}:
+\begin{lstlisting}[language=bash, caption={Installing lcov on Ubuntu/Debian}]
+sudo apt-get update
+sudo apt-get install lcov
+\end{lstlisting}
+
+On \textbf{macOS}:
+\begin{lstlisting}[language=bash, caption={Installing lcov on macOS}]
+brew install lcov
+\end{lstlisting}
+
+On \textbf{Fedora/RHEL}:
+\begin{lstlisting}[language=bash, caption={Installing lcov on Fedora/RHEL}]
+sudo dnf install lcov
+\end{lstlisting}
+
+\subsection{Verifying Installation}
+
+Verify that the required tools are available:
+\begin{lstlisting}[language=bash, caption={Verifying coverage tools installation}]
+gcc --version
+gcov --version
+lcov --version
+CodeChecker --version
+\end{lstlisting}
+
+\section{Starting the Program}
+
+The coverage feature is accessed through CodeChecker's command-line interface and web server. No separate startup procedure is required. To use the feature:
 
 \begin{enumerate}
-	\item\label{step:first} Donec pretium et quam a cursus. Ut sollicitudin tempus urna et mollis.
-	\item Aliquam et aliquam turpis, sed fermentum mauris. Nulla eget ex diam.
-	\item Donec eget tellus pharetra, semper neque eget, rutrum diam Step~\ref{step:first}.
+    \item Ensure CodeChecker server is running (if using web interface)
+    \item Generate coverage data using the \texttt{CodeChecker coverage} command
+    \item Store the coverage data using \texttt{CodeChecker store}
+    \item Access the visualization through the CodeChecker web interface
 \end{enumerate}
 
-Praesent porta, metus eget eleifend consequat, eros ligula eleifend ex, a pellentesque mi est vitae urna. Vivamus turpis nunc, iaculis non leo eget, mattis vulputate tellus. Maecenas rutrum eros sem, pharetra interdum nulla porttitor sit amet. In vitae viverra ante. Maecenas sit amet placerat orci, sed tincidunt velit. Vivamus mattis, enim vel suscipit elementum, quam odio venenatis elit\footnote{Phasellus faucibus varius purus, nec tristique enim porta vitae.}, et mollis nulla nunc a risus. Praesent purus magna, tristique sed lacus sit amet, convallis malesuada magna. 
+\section{Overview}
+
+The code coverage feature consists of three main components: a command-line tool for generating coverage data, integration with the CodeChecker storage mechanism, and a web-based visualization interface. Users can generate coverage information by compiling their source code with coverage instrumentation flags, executing their test suite, and processing the resulting coverage data into a format compatible with CodeChecker.
+
+\section{Generating Coverage Data}
+
+The \texttt{CodeChecker coverage} command provides a unified interface for generating test coverage data. The tool automates the process of compiling source files with coverage instrumentation, executing the program, and extracting coverage information into a JSON format that can be stored alongside static analysis results.
+
+\subsection{Basic Usage}
+
+The simplest usage involves providing source files directly to the coverage command:
+
+\begin{lstlisting}[language=bash, caption={Generating coverage for a single source file}]
+CodeChecker coverage hello.c -o coverage.json
+\end{lstlisting}
+
+This command compiles \texttt{hello.c} with coverage flags (using the default compiler, \texttt{gcc}), executes the resulting program, and generates a \texttt{coverage.json} file containing the line numbers that were executed during program execution.
+
+\subsection{Using Build Commands}
+
+For more complex projects, users can provide a complete build command that includes both compilation and execution:
+
+\begin{lstlisting}[language=bash, caption={Using a build command for coverage generation}]
+CodeChecker coverage -b "gcc --coverage -o a.out hello.c && ./a.out" \
+  -o coverage.json
+\end{lstlisting}
+
+The build command should compile the source code with the \texttt{--coverage} flag (or equivalent compiler-specific flags) and execute the program to generate coverage data. The tool automatically processes the resulting coverage information files.
+
+\subsection{Output Format}
+
+The generated \texttt{coverage.json} file uses a simple JSON structure mapping absolute file paths to arrays of covered line numbers:
+
+\begin{lstlisting}[language=json, caption={Example coverage.json structure}]
+{
+  "/absolute/path/to/hello.c": [3, 4, 6, 8, 10],
+  "/absolute/path/to/utils.c": [1, 2, 5, 7, 9, 11]
+}
+\end{lstlisting}
+
+Each key represents an absolute file path, and the corresponding value is a sorted list of line numbers that were executed during the test run. Only lines with execution count greater than zero are included in the output.
+
+\subsection{Advanced Options}
+
+The coverage command supports several additional options for customization:
+
+\begin{itemize}
+    \item \texttt{--output-dir}: Specifies a directory for intermediate files (gcov files, lcov info). If not specified, a temporary directory is used and cleaned up automatically.
+    \item \texttt{--keep-temp}: Prevents automatic cleanup of temporary files, useful for debugging coverage generation issues.
+    \item \texttt{--compiler}: Specifies the compiler to use (default: \texttt{gcc}). The tool supports any compiler compatible with GCC-style coverage flags.
+\end{itemize}
+
+\section{Storing Coverage Data}
+
+Once coverage data has been generated, it can be stored in CodeChecker alongside static analysis results. The coverage data is automatically detected and stored when using the \texttt{CodeChecker store} command, provided that a \texttt{coverage.json} file exists in the analysis output directory.
+
+The storage process associates coverage data with the corresponding source files in CodeChecker's database, enabling the web interface to retrieve and display coverage information for files that have been analyzed. Coverage data is stored in a separate database table (\texttt{test\_coverage}) that maintains a relationship with the file metadata, allowing efficient queries for files with available coverage information.
+
+\section{Visualizing Coverage in the Web Interface}
+
+The CodeChecker web interface provides an interactive code coverage visualization component accessible through the Statistics section. The interface allows users to:
+
+\begin{enumerate}
+    \item \textbf{Select files with coverage}: A dropdown menu lists all source files that have associated coverage data, displaying both the filename and its full path for easy identification.
+    \item \textbf{View source code with coverage highlights}: The selected file's source code is displayed in a syntax-highlighted editor, with visual indicators distinguishing covered and uncovered lines.
+    \item \textbf{Line-by-line coverage indication}: Each line of source code is color-coded:
+    \begin{itemize}
+        \item Covered lines are highlighted with a light green background, indicating that these lines were executed during test runs.
+        \item Uncovered lines are highlighted with a light red background, indicating that these lines were not executed.
+    \end{itemize}
+\end{enumerate}
+
+The visualization uses CodeMirror, a web-based code editor component, to provide familiar code navigation features such as line numbers, syntax highlighting, and scrollable content. The coverage highlighting is applied dynamically based on the coverage data retrieved from the CodeChecker server, ensuring that the visualization always reflects the most current coverage information stored in the database.
+
+\section{Integration with Static Analysis}
+
+The primary value of the code coverage visualization feature lies in its integration with CodeChecker's static analysis capabilities. By viewing both static analysis reports and test coverage information in the same interface, developers can:
+
+\begin{itemize}
+    \item Identify code regions with static analysis warnings that lack adequate test coverage, prioritizing these areas for additional testing.
+    \item Verify that code paths flagged by static analyzers are actually exercised by the test suite, helping to distinguish between false positives and genuine issues.
+    \item Make informed decisions about code quality by considering both the presence of static analysis findings and the extent of test coverage in specific code regions.
+\end{itemize}
+
+This integrated view supports a more comprehensive approach to code quality assessment, combining the defect detection capabilities of static analysis with the execution verification provided by test coverage metrics.
+
+\section{System Messages and Error Handling}
+
+\subsection{Error Messages}
+
+The coverage feature provides clear error messages to help users diagnose and resolve issues:
 
 \begin{description}
-	\item[Vestibulum venenatis] malesuada enim, ac auctor erat vestibulum et. Phasellus id purus a leo suscipit accumsan.
-	\item[Orci varius natoque] penatibus et magnis dis parturient montes, nascetur ridiculus mus. Nullam interdum rhoncus nisl, vel pharetra arcu euismod sagittis. Vestibulum ac turpis auctor, viverra turpis at, tempus tellus.
-	\item[Morbi dignissim] erat ut rutrum aliquet. Nulla eu rutrum urna. Integer non urna at mauris scelerisque rutrum sed non turpis.
+    \item[\texttt{lcov info file not found}] This error occurs when the LCOV tool fails to generate coverage data. \textbf{Solution}: Ensure that the program was executed after compilation with coverage flags, and that \texttt{lcov} is properly installed.
+    
+    \item[\texttt{Compilation failed}] The compiler encountered errors during compilation with coverage flags. \textbf{Solution}: Check that source files are valid and that all dependencies are available. Review compiler error messages for specific issues.
+    
+    \item[\texttt{No coverage data found in lcov file}] The LCOV file was generated but contains no coverage information. \textbf{Solution}: Verify that the program was actually executed after compilation, and that test cases exercise the code paths you expect to be covered.
+    
+    \item[\texttt{Source file not found}] A source file specified in the coverage command cannot be located. \textbf{Solution}: Verify file paths are correct and that files exist in the specified locations.
+    
+    \item[\texttt{gcov failed}] The \texttt{gcov} tool encountered errors processing coverage data. \textbf{Solution}: Ensure that \texttt{.gcda} files are present in the output directory and that source files are accessible.
 \end{description}
 
-\subsection{Lists with narrow spacing inbetween items}
+\subsection{Information Messages}
 
-Phasellus ultricies, sapien sit amet ultricies placerat, velit purus viverra ligula, id consequat ipsum odio imperdiet enim:
-\begin{compactenum}
-	\item Maecenas eget lobortis leo.
-	\item Donec eget libero enim.
-	\item In eu eros a eros lacinia maximus ullamcorper eget augue.
-\end{compactenum}
+The tool provides informational messages during execution:
 
-\bigskip
+\begin{description}
+    \item[\texttt{Compiling with coverage flags...}] Indicates that the compilation process has started with coverage instrumentation enabled.
+    
+    \item[\texttt{Running program to generate coverage data...}] The compiled program is being executed to generate coverage information.
+    
+    \item[\texttt{Generating gcov files...}] The tool is processing coverage data files using \texttt{gcov}.
+    
+    \item[\texttt{Coverage data written to: <path>}] Successfully generated coverage JSON file location.
+    
+    \item[\texttt{Covered N file(s)}] Summary of how many source files have coverage data.
+    
+    \item[\texttt{Total covered lines: N}] Total number of lines that were executed during the test run.
+\end{description}
 
-In quis turpis metus. Proin maximus nibh et massa eleifend, a feugiat augue porta. Sed eget est purus. Duis in placerat leo. Donec pharetra eros nec enim convallis:
-\begin{compactitem}
-	\item Pellentesque odio lacus.
-	\item Maximus ut nisl auctor.
-	\item Sagittis vulputate lorem.
-\end{compactitem}
+\subsection{Warning Messages}
 
-\bigskip
+\begin{description}
+    \item[\texttt{Program execution failed (this may be expected)}] The program terminated with a non-zero exit code, but coverage data may still have been generated. This is common for programs that intentionally exit with error codes or for test suites with failing tests.
+    
+    \item[\texttt{No source files found for gcov generation}] No source files were automatically detected from \texttt{.gcda} files. \textbf{Solution}: Manually specify source files or ensure build artifacts are in the expected locations.
+    
+    \item[\texttt{gcov failed for <file>}] Coverage data generation failed for a specific file, but processing continues for other files.
+\end{description}
 
-Vestibulum ante ipsum primis in faucibus orci luctus et ultrices posuere cubilia Curae; Sed lorem libero, dignissim vitae gravida a, ornare vitae est.
-\begin{compactdesc}
-	\item[Cras maximus] massa commodo pellentesque viverra.
-	\item[Morbi sit] amet ante risus. Aliquam nec sollicitudin mauris
-	\item[Ut aliquam rhoncus sapien] luctus viverra arcu iaculis posuere
-\end{compactdesc}
+\section{Troubleshooting}
 
+\subsection{Common Issues and Solutions}
 
-\section{Images and figures}
+\begin{description}
+    \item[\textbf{Issue}: Coverage data not appearing in web interface]
+    \textbf{Solution}: 
+    \begin{enumerate}
+        \item Verify that \texttt{coverage.json} exists in the analysis output directory
+        \item Ensure file paths in \texttt{coverage.json} match the file paths stored in CodeChecker
+        \item Check that \texttt{CodeChecker store} completed successfully
+        \item Verify database connection and permissions
+    \end{enumerate}
+    
+    \item[\textbf{Issue}: Incorrect line numbers in coverage visualization]
+    \textbf{Solution}: 
+    \begin{enumerate}
+        \item Ensure source files haven't been modified between coverage generation and visualization
+        \item Verify that absolute file paths in coverage data match the files in CodeChecker
+        \item Regenerate coverage data if source files have changed
+    \end{enumerate}
+    
+    \item[\textbf{Issue}: Coverage command fails with "lcov not found"]
+    \textbf{Solution}: Install \texttt{lcov} using your system's package manager (see Installation section).
+    
+    \item[\textbf{Issue}: No files listed in coverage visualization dropdown]
+    \textbf{Solution}: 
+    \begin{enumerate}
+        \item Verify that coverage data was successfully stored using \texttt{CodeChecker store}
+        \item Check that files have associated coverage data in the database
+        \item Ensure you have proper permissions to view the product
+    \end{enumerate}
+    
+    \item[\textbf{Issue}: Performance issues with large codebases]
+    \textbf{Solution}: 
+    \begin{enumerate}
+        \item Use \texttt{--output-dir} to specify a dedicated directory for intermediate files
+        \item Consider processing coverage data in batches for very large projects
+        \item Ensure adequate disk space for temporary files
+    \end{enumerate}
+\end{description}
 
-Aliquam vehicula luctus mi a pretium. Nulla quam neque, maximus nec velit in, aliquam mollis tortor. Aliquam erat volutpat. Curabitur vitae laoreet turpis. Integer id diam ligula. Nulla sodales purus id mi consequat, eu venenatis odio pharetra. Cras a arcu quam. Suspendisse augue risus, pulvinar a turpis et, commodo aliquet turpis. Nulla aliquam scelerisque mi eget pharetra. Mauris sed posuere elit, ac lobortis metus. Proin lacinia sit amet diam sed auctor. Nam viverra orci id sapien sollicitudin, a aliquam lacus suscipit, Figure~\ref{fig:example-1}:
+\subsection{Security Considerations}
 
-\begin{figure}[H]
-	\centering
-	\includegraphics[width=0.6\textwidth,height=100px]{elte_cimer_szines}
-	\caption{Quisque ac tincidunt leo}
-	\label{fig:example-1}
-\end{figure}
-
-\subsection{Framing figures}
-
-Ut aliquet nec neque eget fermentum. Cras volutpat tellus sed placerat elementum. Quisque neque dui, consectetur nec finibus eget, blandit id purus. Nam eget ipsum non nunc placerat interdum.
-
-\begin{figure}[H]
-	\centering
-	\includegraphics[width=0.6\textwidth,height=100px,frame]{elte_cimer_szines}
-	\caption{Quisque ac tincidunt leo}
-\end{figure}
-
-\subsection{Subfigures}
-
-In non ipsum fermentum urna feugiat rutrum a at odio. Pellentesque habitant morbi tristique senectus et netus et malesuada fames ac turpis egestas. Nulla tincidunt mattis nisl id suscipit. Sed bibendum ac felis sed volutpat. Nam pharetra nisi nec facilisis faucibus. Aenean tristique nec libero non commodo. Nulla egestas laoreet tempus. Nunc eu aliquet nulla, quis vehicula dui. Proin ac risus sodales, gravida nisi vitae, efficitur neque, Figure~\ref{fig:example-2}:
-
-\begin{figure}[H]
-	\centering
-	\subcaptionbox{Vestibulum quis mattis urna}{
-		\includegraphics[width=0.45\linewidth]{elte_cimer_szines}}
-	\hspace{5pt}
-	\subcaptionbox{Donec hendrerit quis dui sit amet venenatis}{
-		\includegraphics[width=0.45\linewidth]{elte_cimer_szines}}
-	\caption{Aenean porttitor mi volutpat massa gravida}
-	\label{fig:example-2}
-\end{figure}
-
-Nam et nunc eget elit tincidunt sollicitudin. Quisque ligula ipsum, tempor vitae tortor ut, commodo rhoncus diam. Pellentesque habitant morbi tristique senectus et netus et malesuada fames ac turpis egestas. Phasellus vehicula quam dui, eu convallis metus porta ac.
-
-
-\section{Tables}
-
-Nam magna ex, euismod nec interdum sed, sagittis nec leo. Nam blandit massa bibendum mattis tristique. Phasellus tortor ligula, sodales a consectetur vitae, placerat vitae dolor. Aenean consequat in quam ac mollis. 
-
-\begin{table}[H]
-	\centering
-	\begin{tabular}{ | m{0.25\textwidth} | m{0.65\textwidth} | }
-		\hline
-		\textbf{Phasellus tortor} & \textbf{Aenean consequat} \\
-		\hline \hline
-		\emph{Sed malesuada} & Aliquam aliquam velit in convallis ultrices. \\
-		\hline
-		\emph{Purus sagittis} &  Quisque lobortis eros vitae urna lacinia euismod. \\
-		\hline
-		\emph{Pellentesque} & Curabitur ac lacus pellentesque, eleifend sem ut, placerat enim. Ut auctor tempor odio ut dapibus. \\
-		\hline
-	\end{tabular}
-	\caption{Maecenas tincidunt non justo quis accumsan}
-	\label{tab:example-1}
-\end{table}
-
-\subsection{Multi rows and multi columns}
-
-Mauris a dapibus lectus. Vestibulum commodo nibh ante, ut maximus magna eleifend vel. Integer vehicula elit non lacus lacinia, vitae porttitor dolor ultrices. Vivamus gravida faucibus efficitur. Ut non erat quis arcu vehicula lacinia. Nulla felis mauris, laoreet sed malesuada in, euismod et lacus. Aenean at finibus ipsum. Pellentesque dignissim elit sit amet lacus congue vulputate.
-
-\begin{table}[htb]
-	\centering
-	\begin{tabular}{ | c | r | r | r | r | r | r | }
-		\hline
-		\multirow{2}{*}{\textbf{Quisque}} & \multicolumn{2}{ c | }{\textbf{Suspendisse}} & \multicolumn{2}{ c | }{\textbf{Aliquam}} & \multicolumn{2}{ c | }{\textbf{Vivamus}} \\
-		\cline{2-7}
-		& Proin & Nunc & Proin & Nunc & Proin & Nunc \\
-		\hline \hline		
-		Leo & 2,80 MB & 100\% & 232 KB & 8,09\% & 248 KB & 8,64\% \\
-		\hline
-		Vel & 9,60 MB & 100\% & 564 KB & 5,74\% & 292 KB & 2,97\% \\
-		\hline
-		Auge & 78,2 MB & 100\% & 52,3 MB & 66,88\% & 3,22 MB & 4,12\% \\
-		\hline 
-	\end{tabular}
-	\caption[Rövid cím a táblázatjegyzékbe]{Vivamus ac arcu fringilla, fermentum neque sed, interdum erat. Mauris bibendum mauris vitae enim mollis, et eleifend turpis aliquet.}
-	\label{tab:example-2}
-\end{table}
-
-\subsection{Long tables over multiple pages}
-
-Nunc porta placerat leo, sit amet porttitor dui porta molestie. Aliquam at fermentum mi. Maecenas vitae lorem at leo tincidunt volutpat at nec tortor. Vivamus semper lacus eu diam laoreet congue. Vivamus in ipsum risus. Nulla ullamcorper finibus mauris non aliquet. Vivamus elementum rhoncus ex ut porttitor.
-
-\begin{center}
-	\begin{longtable}{ | p{0.3\textwidth} | p{0.7\textwidth} | }
-		
-		\hline
-		\multicolumn{2}{|c|}{\textbf{Praesent aliquam mauris enim}}
-		\\ \hline
-		
-		\emph{Suspendisse potenti} & \emph{Lorem ipsum dolor sit amet}
-		\\ \hline \hline
-		\endfirsthead % table header on first page
-		
-		\hline
-		\emph{Suspendisse potenti} & \emph{Lorem ipsum dolor sit amet}
-		\\ \hline \hline
-		\endhead % table header on further pages
-		
-		\hline
-		\endfoot % table footer on previous pages
-		
-		\endlastfoot % table footer on last page
-		
-		\emph{Praesent}
-		& Nulla ultrices et libero sit amet fringilla. Nunc scelerisque ante tempus sapien placerat convallis.
-		\\ \hline
-		
-		\emph{Luctus}
-		& Integer hendrerit erat massa, non hendrerit risus convallis at. Curabitur ultrices, justo in imperdiet condimentum, neque tortor luctus enim, luctus posuere massa erat vitae nibh.
-		\\ \hline
-		
-		\emph{Egestas}
-		& Duis fermentum feugiat augue in blandit. Mauris a tempor felis. Pellentesque ultricies tristique dignissim. Pellentesque aliquam semper tristique. Nam nec egestas dolor. Vestibulum id elit quis enim fringilla tempor eu a mauris. Aliquam vitae lacus tellus. Phasellus mauris lectus, aliquam id leo eget, auctor dapibus magna. Fusce lacinia felis ac elit luctus luctus.
-		\\ \hline
-		
-		\emph{Dignissim}
-		& Praesent aliquam mauris enim, vestibulum posuere massa facilisis in. Suspendisse potenti. Nam quam purus, rutrum eu augue ut, varius vehicula tellus. Fusce dui diam, aliquet sit amet eros at, sollicitudin facilisis quam. Phasellus tempor metus vel augue gravida pretium. Proin aliquam aliquam blandit. Nulla id tempus mi. Fusce in aliquam tortor.
-		\\ \hline
-		
-		\emph{Pellentesque}
-		& Donec felis nibh, imperdiet a arcu non, vehicula gravida nibh. Quisque interdum sapien eu massa commodo, ac elementum felis faucibus.
-		\\ \hline
-		
-		\emph{Molestie}
-		& Cras ullamcorper tellus et auctor ultricies. Maecenas tincidunt euismod lectus nec venenatis. Suspendisse potenti. Pellentesque pretium nunc ut euismod cursus. Nam venenatis condimentum quam. Curabitur suscipit efficitur aliquet. Interdum et malesuada fames ac ante ipsum primis in faucibus.
-		\\ \hline
-		
-		\emph{Vivamus semper}
-		& In purus purus, faucibus eu libero vulputate, tristique sodales nunc. Nulla ut gravida dolor. Fusce vel pellentesque mi, vel efficitur eros. Nunc vitae elit tellus. Sed vestibulum auctor consequat. 
-		\\ \hline
-		
-		\emph{Condimentum}
-		& Nulla scelerisque, leo et facilisis pretium, risus enim cursus turpis, eu suscipit ipsum ipsum in mauris. Praesent eget pulvinar ipsum, suscipit interdum nunc. Nam varius massa ut justo ullamcorper sollicitudin. Vivamus facilisis suscipit neque, eu fermentum risus. Ut at mi mauris.
-		\\ \hline
-		
-		\caption{Praesent ullamcorper consequat tellus ut eleifend}
-		\label{tab:example-3}		
-	\end{longtable}
-\end{center}
+\begin{itemize}
+    \item \textbf{File Path Exposure}: Coverage data contains absolute file paths. Ensure that sensitive path information is not exposed in shared environments.
+    
+    \item \textbf{Database Access}: Coverage data is stored in CodeChecker's database. Follow CodeChecker's security guidelines for database access and user permissions.
+    
+    \item \textbf{Input Validation}: The coverage command validates input file paths to prevent directory traversal attacks. Always use trusted source files.
+    
+    \item \textbf{Temporary Files}: Temporary files created during coverage generation may contain source code. Use \texttt{--keep-temp} only in secure environments, and clean up temporary directories manually when needed.
+\end{itemize}

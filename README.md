@@ -1,78 +1,74 @@
-[![CI status](https://github.com/mcserep/elteikthesis/actions/workflows/ci.yml/badge.svg)](https://github.com/mcserep/elteikthesis/actions/workflows/ci.yml)
-[![Overleaf template](https://img.shields.io/badge/Overleaf-ELTE%20FI%20Thesis%20Template-brightgreen)](https://www.overleaf.com/latex/templates/elte-fi-thesis-template/scjzzzbjvwfz)
+# ELTE FI Thesis Template - Compilation Guide
 
-See [Hungarian version](README_hu.md).
+This document describes how to compile the thesis LaTeX document to generate a PDF.
 
-# ELTE FI bachelor and master thesis template
+## Prerequisites
 
-The [elteikthesis_en.tex](elteikthesis_en.tex) and the produced [elteikthesis_en.pdf](elteikthesis_en.pdf) serves as an example of usage.
-This class template enforces the required formatting rules for bachelor and master theses and generates the cover page given on the provided metadata. The chapters of the example document follows the typical structure of a BSc thesis.
-The formatting rules are defined to meet the requirements for theses submitted at the Eötvös Loránd University, Faculty of Informatics (Budapest, Hungary). However with sufficient modifications the template should be usable at other universities, too.
-
-The template contains configuration both for single and double sided printing (see `twoside` option), by default it is set to the recommended single side format.
-The template supports producing both Hungarian and English theses, which can be easily controlled (see `\documentlang` command).
+You need a LaTeX distribution installed on your system:
+- **macOS**: Install [MacTeX](https://www.tug.org/mactex/)
+- **Linux**: Install `texlive-full` package
+- **Windows**: Install [MiKTeX](https://miktex.org/) or [TeX Live](https://www.tug.org/texlive/)
 
 ## Compilation
 
+The thesis uses `biber` for bibliography management. Follow these steps to compile:
+
+### Manual Compilation
+
 ```bash
-# Generate elteikthesis_en.aux file
-# (PDF file contains incorrect references yet)
+# Step 1: First pdflatex pass (generates .aux file)
 pdflatex elteikthesis_en.tex
-# Generate bibliography
+
+# Step 2: Generate bibliography
 biber elteikthesis_en
-# Generate nomenclature (optional)
-makeindex -s nomencl.ist -t elteikthesis_en.nlg \
-  -o elteikthesis_en.nls elteikthesis_en.nlo
-# Generate final PDF file
+
+# Step 3: Generate nomenclature (optional, if using \printnomenclature)
+# makeindex -s nomencl.ist -t elteikthesis_en.nlg -o elteikthesis_en.nls elteikthesis_en.nlo
+
+# Step 4: Second pdflatex pass (resolves references)
+pdflatex elteikthesis_en.tex
+
+# Step 5: Final pdflatex pass (ensures all references are correct)
 pdflatex elteikthesis_en.tex
 ```
 
-Compilation might be carried out through a preferred IDE (e.g. [TexStudio](https://www.texstudio.org/)), given the same commands should be executed.
+### Using the Compilation Script
 
-## Syntax highlighting of code blocks
+A compilation script is provided for convenience:
 
-The minted package is also supported for syntax  highlighting. For its usage the Python interpreter and the `Pygments` package must be installed as a prerequisite.
-See the `elteikthesis_minted.tex` file for example and this [documentation](https://www.overleaf.com/learn/latex/Code_Highlighting_with_minted).
+```bash
+./compile.sh
+```
 
-## Overleaf
+This script automatically runs all the necessary compilation steps in the correct order.
 
-*Overleaf* is a free, easy to use online, collaborative LaTeX editor; similar like e.g. Google Docs, but for LateX documents.
-You can also find the latest release of this ELTE FI bachelor and master thesis template [on Overleaf](https://www.overleaf.com/latex/templates/elte-fi-thesis-template/scjzzzbjvwfz).
+### Using an IDE
 
-## Required packages (without completeness)
+You can also compile using a LaTeX IDE like:
+- **TeXStudio**: Open `elteikthesis_en.tex` and click "Build & View"
+- **TeXShop** (macOS): Open the file and click "Typeset"
+- **Overleaf**: Upload the files to [Overleaf](https://www.overleaf.com/) for online compilation
 
-**Image handling:**
+## Output
 
-* Minimal and maximal size: [adjustbox](https://ctan.org/pkg/adjustbox)
-* Subfigures: [subcaption](https://ctan.org/pkg/subcaption)
-* Rotation: [rotating](https://ctan.org/pkg/rotating)
+After successful compilation, the PDF file `elteikthesis_en.pdf` will be generated in the same directory.
 
-**Table management:**
+## Troubleshooting
 
-* Multirow and multicolumn support: [multirow](https://ctan.org/pkg/multirow)
-* Breakable tables: [longtable](https://ctan.org/pkg/longtable)
-* Vertical positioning of cells: [array](https://ctan.org/pkg/array)
-* Multiline cells (line breaks): [makecell](https://ctan.org/pkg/makecell)
+- **Missing packages**: If you get errors about missing packages, install them using your LaTeX distribution's package manager
+- **Bibliography errors**: Make sure `biber` is installed and run after the first pdflatex pass
+- **Image errors**: Ensure all images referenced in the document exist in the `images/` directory
 
-**Lists:**
+## File Structure
 
-* Lists with narrow spacing: [paralist](https://ctan.org/pkg/paralist)
+- `elteikthesis_en.tex` - Main LaTeX document
+- `elteikthesis.cls` - Document class file (required)
+- `elteikthesis.bib` - Bibliography database
+- `samples_en/` - Chapter content files
+  - `intro.tex` - Introduction
+  - `user.tex` - User documentation
+  - `impl.tex` - Implementation
+  - `sum.tex` - Conclusion
+  - `sim.tex` - Appendix
+- `images/` - Image files (e.g., logos, figures)
 
-**Mathematical formulas and algorithms:**
-
-* Mathematical formulas: [amsmath](https://ctan.org/pkg/amsmath)
-* Mathematical definitions: [amsthm](https://ctan.org/pkg/amsthm)
-* Mathematical symbols: [amsfonts](https://ctan.org/pkg/amsfonts)
-* Algorithms: [algpseudocode](https://www.ctan.org/pkg/algorithmicx)
-* Code blocks: [listingsutf8](https://ctan.org/pkg/listingsutf8), [minted](https://ctan.org/pkg/minted)
-
-**Miscellaneous:**
-
-* Todos: [todonotes](https://ctan.org/pkg/todonotes)
-
-## Predefined theorem-like environments
-
-* *definition*
-* *theorem*
-* *remark*
-* *note*
