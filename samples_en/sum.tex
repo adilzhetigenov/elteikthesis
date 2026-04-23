@@ -1,46 +1,52 @@
 \chapter{Conclusion}
 \label{ch:sum}
 
-This thesis presented the design, implementation, and integration of a code coverage visualization feature for the CodeChecker static analysis platform. The feature extends CodeChecker's capabilities by enabling users to generate, store, and visualize test coverage data alongside static analysis results, providing a more comprehensive view of code quality.
+This thesis presented the design, implementation, and integration of a code coverage visualization feature for the CodeChecker static analysis platform.
 
 \section{Summary of Contributions}
 
-The implementation encompasses several key components that integrate seamlessly with CodeChecker's existing architecture:
+The implementation encompasses several key components:
 
 \begin{itemize}
-    \item \textbf{Command-line tool}: A new \texttt{CodeChecker coverage} command that automates the process of generating test coverage data by compiling source code with coverage instrumentation, executing programs, and extracting coverage information into a standardized JSON format.
-    \item \textbf{Database schema}: A new \texttt{test\_coverage} table that stores line-level coverage information with proper foreign key relationships to CodeChecker's file metadata, ensuring data integrity and efficient querying.
-    \item \textbf{API endpoints}: Two new Thrift API endpoints (\texttt{getTestCoverage} and \texttt{getFilesWithCoverage}) that provide programmatic access to coverage data, following CodeChecker's existing API patterns and permission system.
-    \item \textbf{Web interface}: An interactive coverage visualization component that displays source code with line-by-line coverage highlighting, enabling developers to identify covered and uncovered code regions at a glance.
-\end{itemize}
+    \item \textbf{LCOV report converter}: A new \texttt{report-converter} module (\texttt{-t lcov}) that parses LCOV \texttt{.info} files and extracts covered lines, uncovered lines, and function coverage statistics into CodeChecker's \texttt{coverage.json} format. The converter follows the same auto-discovery pattern as all other analyzer integrations.
 
-The feature successfully integrates coverage data generation, storage, and visualization into CodeChecker's workflow, allowing developers to correlate static analysis findings with test coverage metrics. This integration supports more informed decision-making about code quality by considering both defect detection results and execution verification data.
+    \item \textbf{Database schema}: Two tables---\texttt{test\_coverage} for line-level data (using sign encoding to distinguish covered from uncovered lines) and \texttt{test\_coverage\_summary} for per-file function coverage statistics---with proper foreign key relationships and indexing.
+
+    \item \textbf{API endpoints}: Two Thrift API endpoints (\texttt{getTestCoverage} and \texttt{getFilesWithCoverage}) that provide coverage data to the frontend. The \texttt{getFilesWithCoverage} endpoint is optimized to return line counts and function statistics in a single SQL query, avoiding per-file API calls.
+
+    \item \textbf{Web interface}: Two Vue.js components---a directory-level statistics dashboard with LCOV-style coverage bars, function coverage columns, and file search; and a file-level view with line-by-line green/red/white highlighting based directly on LCOV instrumentation data.
+
+    \item \textbf{Architectural decision}: The removal of the \texttt{CodeChecker coverage} CLI command in favor of the \texttt{report-converter} approach, aligning with CodeChecker's design as a static analysis tool and following the established pattern for external tool integration.
+\end{itemize}
 
 \section{Technical Achievements}
 
-The implementation demonstrates several technical achievements:
-
 \begin{itemize}
-    \item \textbf{Modular design}: The feature is implemented as a cohesive module that integrates with existing CodeChecker components without disrupting the core functionality, following established architectural patterns.
-    \item \textbf{Standard format support}: The tool leverages industry-standard LCOV format for coverage data processing, ensuring compatibility with existing coverage tools and workflows.
-    \item \textbf{Efficient data storage}: The database schema design optimizes for the primary access pattern (retrieving all covered lines for a file) while maintaining flexibility for future enhancements.
-    \item \textbf{User experience}: The web interface provides an intuitive visualization that makes coverage information immediately accessible, with color-coded line highlighting and familiar code editor features.
+    \item \textbf{Accurate line coloring}: By storing all LCOV \texttt{DA:} records (both covered and uncovered) and using the compiler's instrumentation as the authoritative source, the visualization matches \texttt{gcov}/\texttt{lcov} HTML reports exactly, eliminating the inaccuracies of heuristic-based executable line detection.
+
+    \item \textbf{Scalable statistics}: The single-query optimization for the statistics page handles projects with hundreds of files (tested with 580 files from Apache Xerces-C++) without browser resource exhaustion.
+
+    \item \textbf{Function coverage}: Extraction and display of function-level coverage statistics (\texttt{FNF}/\texttt{FNH}) from LCOV data, providing an additional dimension of coverage information beyond line counts.
+
+    \item \textbf{Robust file matching}: Six fallback strategies for matching coverage file paths to database file IDs, handling differences in absolute paths, path prefixes, and filename-only matches.
 \end{itemize}
 
 \section{Future Work}
 
-While the current implementation provides a solid foundation for code coverage visualization in CodeChecker, several areas present opportunities for future enhancement:
-
 \begin{itemize}
-    \item \textbf{Branch coverage}: Extending the feature to support branch coverage metrics in addition to line coverage would provide more comprehensive coverage information, helping developers identify untested code paths.
-    \item \textbf{Coverage history}: Implementing coverage trend tracking over time would enable developers to monitor how test coverage evolves across code revisions, supporting continuous improvement of test suites.
-    \item \textbf{Integration with static analysis}: Developing deeper integration between coverage visualization and static analysis reports could highlight code regions with both static analysis warnings and insufficient test coverage, prioritizing areas for improvement.
-    \item \textbf{Multiple coverage formats}: Supporting additional coverage data formats beyond LCOV (such as those generated by LLVM's coverage tools or other compilers) would increase the tool's applicability across different development environments.
-    \item \textbf{Performance optimization}: For large codebases, implementing incremental coverage updates and caching strategies could improve the responsiveness of the visualization interface.
+    \item \textbf{Branch coverage}: Extending the feature to support branch coverage metrics (LCOV \texttt{BRDA:} records) would provide more comprehensive coverage information.
+
+    \item \textbf{Coverage history}: Tracking coverage trends over time across code revisions would enable monitoring of test suite evolution.
+
+    \item \textbf{Deeper static analysis integration}: Highlighting code regions with both static analysis warnings and low coverage would help prioritize areas for improvement.
+
+    \item \textbf{Multiple coverage formats}: Supporting additional formats beyond LCOV (such as LLVM's \texttt{llvm-cov} JSON export) would increase applicability.
+
+    \item \textbf{Execution counts}: Storing and displaying actual execution counts (not just covered/uncovered) would enable identification of hot paths and rarely-tested code.
+
+    \item \textbf{Alembic migration for TestCoverageSummary}: Creating a proper database migration script for the function coverage summary table.
 \end{itemize}
 
 \section{Conclusion}
 
-The code coverage visualization feature successfully extends CodeChecker's capabilities by integrating test coverage metrics with static analysis results. The implementation demonstrates that coverage data can be effectively generated, stored, and visualized within the existing CodeChecker infrastructure, providing developers with valuable insights into both code defects and test coverage. The feature's modular design and adherence to CodeChecker's architectural patterns ensure that it can serve as a foundation for future enhancements while maintaining compatibility with the broader CodeChecker ecosystem.
-
-The integration of coverage visualization with static analysis represents a step toward more comprehensive code quality assessment tools, combining the strengths of static defect detection with dynamic execution verification. This combination enables developers to make more informed decisions about code quality, test coverage, and maintenance priorities, ultimately contributing to the production of more reliable and maintainable software systems.
+The code coverage visualization feature successfully extends CodeChecker by integrating test coverage metrics with static analysis results. The \texttt{report-converter} approach respects CodeChecker's design as a static analysis tool while providing a clean integration point for dynamic analysis data. The implementation was validated on a real-world C++ project (Apache Xerces-C++, 580 source files, 80 test cases) and produces accurate, performant results that match industry-standard coverage tools.

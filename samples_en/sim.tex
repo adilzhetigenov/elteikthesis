@@ -1,8 +1,60 @@
-\chapter{Simulation results}
-\label{appx:simulation}
+\chapter{LCOV Format Reference}
+\label{appx:lcov}
 
-Lorem ipsum dolor sit amet, consectetur adipiscing elit. Pellentesque facilisis in nibh auctor molestie. Donec porta tortor mauris. Cras in lacus in purus ultricies blandit. Proin dolor erat, pulvinar posuere orci ac, eleifend ultrices libero. Donec elementum et elit a ullamcorper. Nunc tincidunt, lorem et consectetur tincidunt, ante sapien scelerisque neque, eu bibendum felis augue non est. Maecenas nibh arcu, ultrices et libero id, egestas tempus mauris. Etiam iaculis dui nec augue venenatis, fermentum posuere justo congue. Nullam sit amet porttitor sem, at porttitor augue. Proin bibendum justo at ornare efficitur. Donec tempor turpis ligula, vitae viverra felis finibus eu. Curabitur sed libero ac urna condimentum gravida. Donec tincidunt neque sit amet neque luctus auctor vel eget tortor. Integer dignissim, urna ut lobortis volutpat, justo nunc convallis diam, sit amet vulputate erat eros eu velit. Mauris porttitor dictum ante, commodo facilisis ex suscipit sed.
+This appendix documents the LCOV \texttt{.info} file format directives that the converter processes, and the \texttt{coverage.json} output schema.
 
-Sed egestas dapibus nisl, vitae fringilla justo. Donec eget condimentum lectus, molestie mattis nunc. Nulla ac faucibus dui. Nullam a congue erat. Ut accumsan sed sapien quis porttitor. Ut pellentesque, est ac posuere pulvinar, tortor mauris fermentum nulla, sit amet fringilla sapien sapien quis velit. Integer accumsan placerat lorem, eu aliquam urna consectetur eget. In ligula orci, dignissim sed consequat ac, porta at metus. Phasellus ipsum tellus, molestie ut lacus tempus, rutrum convallis elit. Suspendisse arcu orci, luctus vitae ultricies quis, bibendum sed elit. Vivamus at sem maximus leo placerat gravida semper vel mi. Etiam hendrerit sed massa ut lacinia. Morbi varius libero odio, sit amet auctor nunc interdum sit amet.
+\section{LCOV Directives}
 
-Aenean non mauris accumsan, rutrum nisi non, porttitor enim. Maecenas vel tortor ex. Proin vulputate tellus luctus egestas fermentum. In nec lobortis risus, sit amet tincidunt purus. Nam id turpis venenatis, vehicula nisl sed, ultricies nibh. Suspendisse in libero nec nisi tempor vestibulum. Integer eu dui congue enim venenatis lobortis. Donec sed elementum nunc. Nulla facilisi. Maecenas cursus id lorem et finibus. Sed fermentum molestie erat, nec tempor lorem facilisis cursus. In vel nulla id orci fringilla facilisis. Cras non bibendum odio, ac vestibulum ex. Donec turpis urna, tincidunt ut mi eu, finibus facilisis lorem. Praesent posuere nisl nec dui accumsan, sed interdum odio malesuada.
+The LCOV format is a line-oriented text format. Each source file section begins with \texttt{SF:} and ends with \texttt{end\_of\_record}. The converter processes the following directives:
+
+\begin{lstlisting}[caption={LCOV .info file format example}]
+TN:                          # Test name (ignored)
+SF:/path/to/source.c         # Source file path
+FN:51,55,function_name       # Function: start,end,name
+FNDA:11,function_name        # Function data: count,name
+FNF:4                        # Functions found (total)
+FNH:3                        # Functions hit (executed)
+DA:51,11                     # Line 51 executed 11 times
+DA:96,0                      # Line 96 never executed
+LF:63                        # Lines found (ignored)
+LH:38                        # Lines hit (ignored)
+BRDA:51,0,0,1                # Branch data (not yet supported)
+BRF:10                       # Branches found (not yet supported)
+BRH:7                        # Branches hit (not yet supported)
+end_of_record                # End of file section
+\end{lstlisting}
+
+The converter uses \texttt{DA:} records as the authoritative source for line executability. Lines with \texttt{DA:N,count>0} are covered; lines with \texttt{DA:N,0} are uncovered but executable. Lines without any \texttt{DA:} record are non-executable.
+
+\section{coverage.json Schema}
+
+\begin{lstlisting}[caption={coverage.json output schema}]
+{
+  "<absolute_file_path>": {
+    "lines": [<line_numbers with count > 0>],
+    "uncovered": [<line_numbers with count == 0>],
+    "functions_found": <integer from FNF>,
+    "functions_hit": <integer from FNH>
+  }
+}
+\end{lstlisting}
+
+The legacy format (plain list of covered line numbers per file) is also supported for backward compatibility:
+
+\begin{lstlisting}[caption={Legacy coverage.json format}]
+{
+  "<absolute_file_path>": [3, 4, 6, 8, 10]
+}
+\end{lstlisting}
+
+\section{Database Encoding}
+
+In the \texttt{test\_coverage} table, the \texttt{covered\_lines} column uses sign encoding:
+
+\begin{itemize}
+    \item Positive values represent covered lines (e.g., \texttt{51} means line 51 was executed)
+    \item Negative values represent uncovered executable lines (e.g., \texttt{-96} means line 96 is executable but was never executed)
+    \item Lines not present in the table are non-executable
+\end{itemize}
+
+The \texttt{getTestCoverage} API returns all values for a file. The frontend checks the sign to determine coloring: positive $\rightarrow$ green, negative $\rightarrow$ red, absent $\rightarrow$ no color.

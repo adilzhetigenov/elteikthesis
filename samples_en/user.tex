@@ -5,7 +5,7 @@ This chapter provides comprehensive user documentation for the code coverage vis
 
 \section{Task Description}
 
-The code coverage visualization feature extends CodeChecker's static analysis capabilities by integrating test coverage metrics. The software enables developers to generate test coverage data, store it alongside static analysis results, and visualize coverage information through an interactive web interface. This integration allows users to identify code regions with both static analysis warnings and insufficient test coverage, supporting more informed decisions about code quality and testing priorities.
+The code coverage visualization feature extends CodeChecker's static analysis capabilities by integrating test coverage metrics. The software enables developers to convert existing test coverage data into CodeChecker's format, store it alongside static analysis results, and visualize coverage information through an interactive web interface. This integration allows users to identify code regions with both static analysis warnings and insufficient test coverage, supporting more informed decisions about code quality and testing priorities.
 
 \section{Target Audience}
 
@@ -77,92 +77,209 @@ gcc --version
 gcov --version
 lcov --version
 CodeChecker --version
+report-converter --help
 \end{lstlisting}
 
-\section{Starting the Program}
+\section{Architectural Design Decision}
+\label{sec:design-decision}
 
-The coverage feature is accessed through CodeChecker's command-line interface and web server. No separate startup procedure is required. To use the feature:
+CodeChecker is fundamentally a \emph{static} analysis tool~\cite{codechecker}: it examines source code without executing it. The standard CodeChecker workflow (\texttt{log} $\rightarrow$ \texttt{analyze} $\rightarrow$ \texttt{store}) relies on a compilation database that describes how to compile each source file, but never executes the resulting binaries.
+
+Code coverage, by contrast, is a \emph{dynamic} analysis technique. It requires compiling with instrumentation flags, executing the program (typically via a test suite), and collecting runtime data about which lines were reached. This means the compilation database used by CodeChecker's static analysis workflow is insufficient---it contains no information about how to run the software, which executables to invoke, or what test inputs to provide.
+
+For this reason, the coverage feature does not attempt to automate the dynamic analysis steps within CodeChecker itself. Instead, the user is responsible for generating coverage data using their own build system and test infrastructure. CodeChecker's role begins at the point where coverage data already exists as an LCOV~\cite{lcov} \texttt{.info} file. The \texttt{report-converter} tool converts this file into CodeChecker's internal format, and \texttt{CodeChecker store} persists it in the database alongside static analysis results.
+
+This separation of concerns follows the same pattern used by all other external analyzers supported by CodeChecker's \texttt{report-converter} tool (e.g., Pylint, ESLint, Cppcheck). The user runs the external tool, then converts and stores the output.
+
+\section{Coverage Workflow Overview}
+
+The end-to-end workflow consists of five steps, the first three of which are the user's responsibility:
+
+\begin{figure}[H]
+\centering
+\begin{verbatim}
+  Step 1          Step 2         Step 3          Step 4         Step 5
+  gcc --coverage  ./run_tests    lcov --capture  report-conv.   CC store
+  (compile)       (execute)      (collect)       -t lcov        (persist)
+      |               |              |               |              |
+   .gcno           .gcda        coverage.info   coverage.json   Database
+  (metadata)     (runtime)      (LCOV format)   (CC format)      + Web UI
+\end{verbatim}
+\caption{End-to-end coverage workflow. Steps 1--3 are the user's responsibility; steps 4--5 are CodeChecker's.}
+\label{fig:workflow}
+\end{figure}
 
 \begin{enumerate}
-    \item Ensure CodeChecker server is running (if using web interface)
-    \item Generate coverage data using the \texttt{CodeChecker coverage} command
-    \item Store the coverage data using \texttt{CodeChecker store}
-    \item Access the visualization through the CodeChecker web interface
+    \item \textbf{Compile with coverage flags}: Build the project with \texttt{--coverage} (GCC/Clang)
+    \item \textbf{Execute tests}: Run the test suite to generate \texttt{.gcda} runtime data
+    \item \textbf{Capture with lcov}: Produce a standardized \texttt{coverage.info} file
+    \item \textbf{Convert}: Use \texttt{report-converter -t lcov} to produce \texttt{coverage.json}
+    \item \textbf{Store and view}: Use \texttt{CodeChecker store} and browse the web UI
 \end{enumerate}
 
-\section{Overview}
+\section{Step-by-Step Usage}
 
-The code coverage feature consists of three main components: a command-line tool for generating coverage data, integration with the CodeChecker storage mechanism, and a web-based visualization interface. Users can generate coverage information by compiling their source code with coverage instrumentation flags, executing their test suite, and processing the resulting coverage data into a format compatible with CodeChecker.
+\subsection{Step 1: Compile with Coverage Flags}
 
-\section{Generating Coverage Data}
+Compile the project with the \texttt{--coverage} flag. For CMake-based projects:
 
-The \texttt{CodeChecker coverage} command provides a unified interface for generating test coverage data. The tool automates the process of compiling source files with coverage instrumentation, executing the program, and extracting coverage information into a JSON format that can be stored alongside static analysis results.
-
-\subsection{Basic Usage}
-
-The simplest usage involves providing source files directly to the coverage command:
-
-\begin{lstlisting}[language=bash, caption={Generating coverage for a single source file}]
-CodeChecker coverage hello.c -o coverage.json
+\begin{lstlisting}[language=bash, caption={Building with coverage using CMake}]
+mkdir build && cd build
+cmake .. \
+  -DCMAKE_C_FLAGS="--coverage" \
+  -DCMAKE_CXX_FLAGS="--coverage" \
+  -DCMAKE_EXE_LINKER_FLAGS="--coverage" \
+  -DCMAKE_BUILD_TYPE=Debug \
+  -DCMAKE_EXPORT_COMPILE_COMMANDS=ON
+make -j$(nproc)
 \end{lstlisting}
 
-This command compiles \texttt{hello.c} with coverage flags (using the default compiler, \texttt{gcc}), executes the resulting program, and generates a \texttt{coverage.json} file containing the line numbers that were executed during program execution.
-
-\subsection{Using Build Commands}
-
-For more complex projects, users can provide a complete build command that includes both compilation and execution:
-
-\begin{lstlisting}[language=bash, caption={Using a build command for coverage generation}]
-CodeChecker coverage -b "gcc --coverage -o a.out hello.c && ./a.out" \
-  -o coverage.json
+For simple single-file projects:
+\begin{lstlisting}[language=bash, caption={Building a single file with coverage}]
+gcc --coverage -o hello hello.c
 \end{lstlisting}
 
-The build command should compile the source code with the \texttt{--coverage} flag (or equivalent compiler-specific flags) and execute the program to generate coverage data. The tool automatically processes the resulting coverage information files.
+The \texttt{--coverage} flag instructs the compiler to instrument the binary so it records which lines are executed at runtime. This produces \texttt{.gcno} files containing compile-time metadata.
 
-\subsection{Output Format}
+\subsection{Step 2: Run Tests}
 
-The generated \texttt{coverage.json} file uses a simple JSON structure mapping absolute file paths to arrays of covered line numbers:
+Execute the program or test suite to generate runtime coverage data:
 
-\begin{lstlisting}[language=json, caption={Example coverage.json structure}]
+\begin{lstlisting}[language=bash, caption={Running tests to generate coverage data}]
+# For CMake projects with CTest
+ctest --output-on-failure
+
+# For simple programs
+./hello
+\end{lstlisting}
+
+This produces \texttt{.gcda} files containing execution counts for each instrumented line.
+
+\subsection{Step 3: Capture Coverage with LCOV}
+
+Use \texttt{lcov} to collect the \texttt{.gcno} and \texttt{.gcda} files into a single standardized \texttt{coverage.info} file:
+
+\begin{lstlisting}[language=bash, caption={Capturing coverage data with lcov}]
+lcov --capture --directory . --output-file coverage.info \
+  --ignore-errors negative
+\end{lstlisting}
+
+The \texttt{--ignore-errors negative} flag handles rare cases where multi-threaded programs produce negative execution counts.
+
+\subsection{Step 4: Convert to CodeChecker Format}
+
+Use the LCOV report converter to transform the \texttt{coverage.info} file into CodeChecker's \texttt{coverage.json} format:
+
+\begin{lstlisting}[language=bash, caption={Converting LCOV data to CodeChecker format}]
+report-converter -t lcov -o ./cc_reports coverage.info
+\end{lstlisting}
+
+This creates \texttt{cc\_reports/coverage/coverage.json}, which contains per-file data including covered lines, uncovered lines, and function coverage statistics extracted from the LCOV file.
+
+\subsection{Step 5: Store and View}
+
+Optionally run static analysis to produce reports in the same output directory, then store everything:
+
+\begin{lstlisting}[language=bash, caption={Analyzing and storing results}]
+# Optional: run static analysis
+CodeChecker analyze compile_commands.json -o ./cc_reports \
+  --analyzers gcc -j$(nproc)
+
+# Start server (if not already running)
+CodeChecker server --port 8001 -w ~/cc_workspace &
+
+# Store results with coverage
+CodeChecker store ./cc_reports -n my-project \
+  --url http://localhost:8001/Default
+\end{lstlisting}
+
+The \texttt{CodeChecker store} command automatically detects the \texttt{coverage/coverage.json} file in the reports directory and stores the coverage data alongside any static analysis results.
+
+\section{Output Format}
+
+The generated \texttt{coverage.json} file uses a JSON structure mapping absolute file paths to coverage data objects:
+
+\begin{lstlisting}[caption={Example coverage.json structure}]
 {
-  "/absolute/path/to/hello.c": [3, 4, 6, 8, 10],
-  "/absolute/path/to/utils.c": [1, 2, 5, 7, 9, 11]
+  "/path/to/hello.c": {
+    "lines": [3, 4, 6, 8, 10],
+    "uncovered": [12, 13],
+    "functions_found": 3,
+    "functions_hit": 2
+  }
 }
 \end{lstlisting}
 
-Each key represents an absolute file path, and the corresponding value is a sorted list of line numbers that were executed during the test run. Only lines with execution count greater than zero are included in the output.
-
-\subsection{Advanced Options}
-
-The coverage command supports several additional options for customization:
-
+Each entry contains:
 \begin{itemize}
-    \item \texttt{--output-dir}: Specifies a directory for intermediate files (gcov files, lcov info). If not specified, a temporary directory is used and cleaned up automatically.
-    \item \texttt{--keep-temp}: Prevents automatic cleanup of temporary files, useful for debugging coverage generation issues.
-    \item \texttt{--compiler}: Specifies the compiler to use (default: \texttt{gcc}). The tool supports any compiler compatible with GCC-style coverage flags.
+    \item \texttt{lines}: Sorted list of line numbers that were executed (from LCOV \texttt{DA:} records with execution count $> 0$)
+    \item \texttt{uncovered}: Sorted list of executable line numbers that were never executed (from LCOV \texttt{DA:} records with execution count $= 0$)
+    \item \texttt{functions\_found}: Total number of functions in the file (from LCOV \texttt{FNF:} record)
+    \item \texttt{functions\_hit}: Number of functions that were executed at least once (from LCOV \texttt{FNH:} record)
 \end{itemize}
 
-\section{Storing Coverage Data}
-
-Once coverage data has been generated, it can be stored in CodeChecker alongside static analysis results. The coverage data is automatically detected and stored when using the \texttt{CodeChecker store} command, provided that a \texttt{coverage.json} file exists in the analysis output directory.
-
-The storage process associates coverage data with the corresponding source files in CodeChecker's database, enabling the web interface to retrieve and display coverage information for files that have been analyzed. Coverage data is stored in a separate database table (\texttt{test\_coverage}) that maintains a relationship with the file metadata, allowing efficient queries for files with available coverage information.
+The converter also supports the legacy format (plain list of covered line numbers) for backward compatibility with older \texttt{coverage.json} files.
 
 \section{Visualizing Coverage in the Web Interface}
 
-The CodeChecker web interface provides an interactive code coverage visualization component accessible through the Statistics section. The interface allows users to:
+The CodeChecker web interface provides two coverage views accessible through the Statistics section.
 
-\begin{enumerate}
-    \item \textbf{Select files with coverage}: A dropdown menu lists all source files that have associated coverage data, displaying both the filename and its full path for easy identification.
-    \item \textbf{View source code with coverage highlights}: The selected file's source code is displayed in a syntax-highlighted editor, with visual indicators distinguishing covered and uncovered lines.
-    \item \textbf{Line-by-line coverage indication}: Each line of source code is color-coded:
+\subsection{Coverage Statistics View}
+
+The statistics view (\texttt{Statistics} $\rightarrow$ \texttt{Code Coverage}) displays a directory-level overview of coverage data, similar to the LCOV HTML report format:
+
+\begin{itemize}
+    \item \textbf{Directory browsing}: Navigate the project's directory structure with breadcrumb navigation
+    \item \textbf{Line coverage}: Number of covered lines per directory and file, with coverage bar visualization
+    \item \textbf{Function coverage}: Functions found and hit per directory and file, with coverage percentage
+    \item \textbf{File search}: A search field filters the table by file or directory name for quick navigation in large projects
+\end{itemize}
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=\textwidth,max height=0.45\textheight,keepaspectratio]{coverage_stats_top}
+\caption{Coverage Statistics view showing the top-level directory listing for the Apache Xerces-C++ project. Each directory displays line coverage (with bar) and function coverage (color-coded: green $\geq$ 80\%, yellow $\geq$ 50\%, red $<$ 50\%). The header shows overall statistics: 60.3\% line coverage (40,210 of 66,649 executable lines) and 66.3\% function coverage (5,952 of 8,981 functions).}
+\label{fig:stats_top}
+\end{figure}
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=\textwidth,max height=0.45\textheight,keepaspectratio]{coverage_stats_files}
+\caption{File-level view after drilling into the \texttt{datatype} directory. Individual source files are listed with their line and function coverage statistics.}
+\label{fig:stats_files}
+\end{figure}
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=\textwidth,max height=0.3\textheight,keepaspectratio]{coverage_search_filter}
+\caption{The search filter in action: typing ``AbstractNumericFace'' narrows the file list to matching entries, enabling quick navigation in large projects.}
+\label{fig:search_filter}
+\end{figure}
+
+\subsection{File Coverage View}
+
+Clicking a file in the statistics view opens the file-level coverage visualization:
+
+\begin{itemize}
+    \item \textbf{Source code display}: The file's source code is shown with syntax highlighting and line numbers
+    \item \textbf{Line-by-line coverage}: Each line is color-coded based on LCOV data:
     \begin{itemize}
-        \item Covered lines are highlighted with a light green background, indicating that these lines were executed during test runs.
-        \item Uncovered lines are highlighted with a light red background, indicating that these lines were not executed.
+        \item \textbf{Green background}: Line was executed during tests (covered)
+        \item \textbf{Red background}: Line is executable but was never executed (uncovered)
+        \item \textbf{No color}: Line is not executable (comments, blank lines, declarations)
     \end{itemize}
-\end{enumerate}
+    \item \textbf{Coverage summary}: Header shows line coverage percentage, total executable lines, and hit lines
+    \item \textbf{Searchable file selector}: An autocomplete dropdown allows searching files by name or path
+\end{itemize}
 
-The visualization uses CodeMirror, a web-based code editor component, to provide familiar code navigation features such as line numbers, syntax highlighting, and scrollable content. The coverage highlighting is applied dynamically based on the coverage data retrieved from the CodeChecker server, ensuring that the visualization always reflects the most current coverage information stored in the database.
+The coloring is based directly on the LCOV \texttt{DA:} records stored in the database, not on heuristic guessing about which lines are executable. This ensures the visualization matches exactly what the compiler's instrumentation reported.
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=\textwidth,max height=0.5\textheight,keepaspectratio]{coverage_file_view}
+\caption{File-level coverage view for \texttt{AbstractNumericFacetValidator.cpp}. Green lines were executed during tests (e.g., the \texttt{setPattern} and \texttt{setMaxInclusive} calls); red/orange lines are executable but uncovered (e.g., the \texttt{catch} block at line 170--173); white lines (comments, braces, blank lines) are non-executable. The header shows 49.4\% line coverage (157 of 318 executable lines) and 41.5\% function coverage. Breadcrumb navigation shows the path: top level $\rightarrow$ validators $\rightarrow$ datatype.}
+\label{fig:file_view}
+\end{figure}
 
 \section{Integration with Static Analysis}
 
@@ -174,104 +291,42 @@ The primary value of the code coverage visualization feature lies in its integra
     \item Make informed decisions about code quality by considering both the presence of static analysis findings and the extent of test coverage in specific code regions.
 \end{itemize}
 
-This integrated view supports a more comprehensive approach to code quality assessment, combining the defect detection capabilities of static analysis with the execution verification provided by test coverage metrics.
-
-\section{System Messages and Error Handling}
-
-\subsection{Error Messages}
-
-The coverage feature provides clear error messages to help users diagnose and resolve issues:
-
-\begin{description}
-    \item[\texttt{lcov info file not found}] This error occurs when the LCOV tool fails to generate coverage data. \textbf{Solution}: Ensure that the program was executed after compilation with coverage flags, and that \texttt{lcov} is properly installed.
-    
-    \item[\texttt{Compilation failed}] The compiler encountered errors during compilation with coverage flags. \textbf{Solution}: Check that source files are valid and that all dependencies are available. Review compiler error messages for specific issues.
-    
-    \item[\texttt{No coverage data found in lcov file}] The LCOV file was generated but contains no coverage information. \textbf{Solution}: Verify that the program was actually executed after compilation, and that test cases exercise the code paths you expect to be covered.
-    
-    \item[\texttt{Source file not found}] A source file specified in the coverage command cannot be located. \textbf{Solution}: Verify file paths are correct and that files exist in the specified locations.
-    
-    \item[\texttt{gcov failed}] The \texttt{gcov} tool encountered errors processing coverage data. \textbf{Solution}: Ensure that \texttt{.gcda} files are present in the output directory and that source files are accessible.
-\end{description}
-
-\subsection{Information Messages}
-
-The tool provides informational messages during execution:
-
-\begin{description}
-    \item[\texttt{Compiling with coverage flags...}] Indicates that the compilation process has started with coverage instrumentation enabled.
-    
-    \item[\texttt{Running program to generate coverage data...}] The compiled program is being executed to generate coverage information.
-    
-    \item[\texttt{Generating gcov files...}] The tool is processing coverage data files using \texttt{gcov}.
-    
-    \item[\texttt{Coverage data written to: <path>}] Successfully generated coverage JSON file location.
-    
-    \item[\texttt{Covered N file(s)}] Summary of how many source files have coverage data.
-    
-    \item[\texttt{Total covered lines: N}] Total number of lines that were executed during the test run.
-\end{description}
-
-\subsection{Warning Messages}
-
-\begin{description}
-    \item[\texttt{Program execution failed (this may be expected)}] The program terminated with a non-zero exit code, but coverage data may still have been generated. This is common for programs that intentionally exit with error codes or for test suites with failing tests.
-    
-    \item[\texttt{No source files found for gcov generation}] No source files were automatically detected from \texttt{.gcda} files. \textbf{Solution}: Manually specify source files or ensure build artifacts are in the expected locations.
-    
-    \item[\texttt{gcov failed for <file>}] Coverage data generation failed for a specific file, but processing continues for other files.
-\end{description}
-
 \section{Troubleshooting}
 
 \subsection{Common Issues and Solutions}
 
 \begin{description}
+    \item[\textbf{Issue}: Only a few files appear in coverage data]
+    \textbf{Cause}: The \texttt{--coverage} flag was only applied to C files (\texttt{CMAKE\_C\_FLAGS}) but not C++ files.
+    \textbf{Solution}: Set both \texttt{CMAKE\_C\_FLAGS} and \texttt{CMAKE\_CXX\_FLAGS} to \texttt{--coverage}.
+    
     \item[\textbf{Issue}: Coverage data not appearing in web interface]
     \textbf{Solution}: 
     \begin{enumerate}
-        \item Verify that \texttt{coverage.json} exists in the analysis output directory
-        \item Ensure file paths in \texttt{coverage.json} match the file paths stored in CodeChecker
-        \item Check that \texttt{CodeChecker store} completed successfully
-        \item Verify database connection and permissions
+        \item Verify that \texttt{coverage/coverage.json} exists in the reports directory
+        \item Ensure source files are also stored (run static analysis or include a report referencing the files)
+        \item Check the server log for ``Could not match coverage file'' warnings
     \end{enumerate}
     
-    \item[\textbf{Issue}: Incorrect line numbers in coverage visualization]
-    \textbf{Solution}: 
-    \begin{enumerate}
-        \item Ensure source files haven't been modified between coverage generation and visualization
-        \item Verify that absolute file paths in coverage data match the files in CodeChecker
-        \item Regenerate coverage data if source files have changed
-    \end{enumerate}
-    
-    \item[\textbf{Issue}: Coverage command fails with "lcov not found"]
-    \textbf{Solution}: Install \texttt{lcov} using your system's package manager (see Installation section).
+    \item[\textbf{Issue}: \texttt{lcov} reports ``Unexpected negative count'']
+    \textbf{Cause}: Multi-threaded programs can produce negative counts due to race conditions in coverage counters.
+    \textbf{Solution}: Add \texttt{--ignore-errors negative} to the \texttt{lcov} command, or compile with \texttt{-fprofile-update=atomic}.
     
     \item[\textbf{Issue}: No files listed in coverage visualization dropdown]
     \textbf{Solution}: 
     \begin{enumerate}
-        \item Verify that coverage data was successfully stored using \texttt{CodeChecker store}
-        \item Check that files have associated coverage data in the database
+        \item Verify that coverage data was successfully stored (check server log for ``Stored coverage data for N file(s)'')
         \item Ensure you have proper permissions to view the product
     \end{enumerate}
     
-    \item[\textbf{Issue}: Performance issues with large codebases]
-    \textbf{Solution}: 
-    \begin{enumerate}
-        \item Use \texttt{--output-dir} to specify a dedicated directory for intermediate files
-        \item Consider processing coverage data in batches for very large projects
-        \item Ensure adequate disk space for temporary files
-    \end{enumerate}
+    \item[\textbf{Issue}: \texttt{ERR\_INSUFFICIENT\_RESOURCES} in browser]
+    \textbf{Cause}: Very large projects may exceed browser connection limits.
+    \textbf{Solution}: The statistics page is optimized to use a single API call. Hard-refresh the page (\texttt{Ctrl+Shift+R}) to load the latest frontend.
 \end{description}
 
 \subsection{Security Considerations}
 
 \begin{itemize}
     \item \textbf{File Path Exposure}: Coverage data contains absolute file paths. Ensure that sensitive path information is not exposed in shared environments.
-    
     \item \textbf{Database Access}: Coverage data is stored in CodeChecker's database. Follow CodeChecker's security guidelines for database access and user permissions.
-    
-    \item \textbf{Input Validation}: The coverage command validates input file paths to prevent directory traversal attacks. Always use trusted source files.
-    
-    \item \textbf{Temporary Files}: Temporary files created during coverage generation may contain source code. Use \texttt{--keep-temp} only in secure environments, and clean up temporary directories manually when needed.
 \end{itemize}

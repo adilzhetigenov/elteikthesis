@@ -7,28 +7,24 @@
 	%final, % Set final to hide todos
 ]{elteikthesis}[2024/04/26]
 
-% The minted package is also supported for source highlighting
-% See elteikthesis_minted.tex for example
-%\usepackage[newfloat]{minted}
-
 % Document's metadata
 \title{Test Coverage feature in CodeChecker} % title
-\date{2025} % year of defense
+\date{2026} % year of defense
 
 % Author's metadata
-\author{Adil Zhetigenov} % Update with actual author name
-\degree{Computer Science BSc} % Update with actual degree if different
+\author{Adil Zhetigenov}
+\degree{Computer Science BSc}
 
-% Superivsor(s)' metadata
-\supervisor{Porkolab Zoltan} % internal supervisor's name
-\affiliation{Associate Professor, habil.PhD } % internal supervisor's affiliation
+% Supervisor(s)' metadata
+\supervisor{Porkoláb Zoltán} % internal supervisor's name
+\affiliation{Associate Professor, habil.PhD} % internal supervisor's affiliation
 \extsupervisor{Tibor Brunner} % external supervisor's name
 \extaffiliation{Software Developer, Ph.D.} % external supervisor's affiliation
 
 % University's metadata
 \university{Eötvös Loránd University} % university's name
 \faculty{Faculty of Informatics} % faculty's name
-\department{DDepartment of Programming Languages and Compilers} % department's name
+\department{Department of Programming Languages and Compilers} % department's name
 \city{Budapest} % city
 \logo{elte_cimer_szines} % logo
 
@@ -39,16 +35,13 @@
 \begin{document}
 
 % Set document language
-%\documentlang{hungarian}
 \documentlang{english}
-
-% List of todos (not in the final document)
-%\listoftodos[\todolabel]
 
 % Title page (mandatory)
 \maketitle
-% Topic declaration page (mandatory) - can also be attached instead
-%\includepdf{topicdeclaration.pdf}
+
+% Topic declaration page (mandatory)
+\includepdf{topicdeclaration.pdf}
 
 % Table of contents (mandatory)
 \tableofcontents
@@ -67,12 +60,16 @@
 \input{samples_en/sum.tex}
 \cleardoublepage
 
-% Acknowledgements (optional) - in case your thesis received funding or would like to express special thanks to someone
+% Acknowledgements
 \chapter*{\acklabel}
 \addcontentsline{toc}{chapter}{\acklabel}
-In case your thesis received financial support from a project or the university, it is usually required to indicate the proper attribution in the thesis itself. Special thanks can also be expressed towards teachers, fellow students and colleagues who helped you in the process of creating your thesis.
+I would like to express my gratitude to my external supervisor, Tibor Brunner, for his expert guidance on CodeChecker's architecture and for the insight that dynamic analysis integration requires a fundamentally different approach than static analysis. His explanation of the compilation database limitations shaped the core design decision of this thesis.
 
-% Appendices (optional) - useful for detailed information in long tables, many and/or large figures, etc.
+I am grateful to my internal supervisor, Porkoláb Zoltán, for his support and for connecting me with the CodeChecker project at Ericsson Hungary.
+
+I also thank Ericsson Hungary for providing access to the CodeChecker codebase and development infrastructure.
+
+% Appendices
 \appendix
 \input{samples_en/sim.tex}
 \cleardoublepage
@@ -89,25 +86,16 @@ In case your thesis received financial support from a project or the university,
 \listoffigures
 \cleardoublepage
 
-% List of tables (optional) - useful over 3-5 tables
-\phantomsection
-\addcontentsline{toc}{chapter}{\lsttablelabel}
-\listoftables
-\cleardoublepage
-
-% List of algorithms (optional) - useful over 3-5 algorithms
-\phantomsection
-\addcontentsline{toc}{chapter}{\lstalgorithmlabel}
-\listofalgorithms
-\cleardoublepage
-
-% List of codes (optional) - useful over 3-5 code samples
+% List of codes
 \phantomsection
 \addcontentsline{toc}{chapter}{\lstcodelabel}
 \lstlistoflistings
 \cleardoublepage
 
-% List of symbols (optional)
-%\printnomenclature
+% List of tables
+\phantomsection
+\addcontentsline{toc}{chapter}{\lsttablelabel}
+\listoftables
+\cleardoublepage
 
 \end{document}
