@@ -205,7 +205,7 @@ CodeChecker store ./cc_reports -n my-project \
 
 The \texttt{CodeChecker store} command automatically detects the \texttt{coverage/coverage.json} file in the reports directory and stores the coverage data alongside any static analysis results.
 
-Note that static analysis is not required for coverage visualization. If only coverage data is needed, the \texttt{CodeChecker analyze} step can be skipped. However, the source files referenced in \texttt{coverage.json} must be present in CodeChecker's database for coverage data to be associated with them. Running at least one analysis pass that references these files ensures they are stored.
+Note that static analysis is not required for coverage visualization. If only coverage data is needed, the \texttt{CodeChecker analyze} step can be skipped. Source files referenced in \texttt{coverage.json} will be stored automatically during the \texttt{CodeChecker store} operation as long as they are accessible on disk.
 
 \section{Output Format}
 

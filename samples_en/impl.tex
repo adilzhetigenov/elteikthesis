@@ -293,6 +293,8 @@ if fnf > 0:
 
 The method also supports backward compatibility with the legacy format where \texttt{coverage.json} contains plain lists of covered line numbers.
 
+If a source file referenced in \texttt{coverage.json} is not found in the database through any of the six matching strategies, the storage method attempts to store it directly: it reads the file from disk, computes its SHA-256 hash, creates a \texttt{FileContent} record (if the hash is new) and a \texttt{File} record, then proceeds with coverage storage. This ensures that coverage data can be stored even without a prior static analysis run, as long as the source files are accessible on the machine running \texttt{CodeChecker store}.
+
 The six-strategy path matching may appear over-engineered, but each strategy addresses a real-world scenario. Strategy 1 (exact match) handles the common case where the build machine and the CodeChecker server use the same paths. Strategy 2 (trimmed prefix) handles CI environments where build paths include job-specific prefixes (e.g., \texttt{/jenkins/workspace/job-123/src/file.c}). Strategies 3--4 (database queries) handle the case where coverage data is stored in a separate \texttt{CodeChecker store} invocation from the static analysis results, so the file is already in the database but not in the current store operation's path map. Strategies 5--6 (filename-only) are a last resort for cross-platform scenarios where the directory structure differs entirely. If all six strategies fail, the file is skipped with a warning---this is preferable to silently associating coverage data with the wrong file.
 
 \section{API Endpoints}
