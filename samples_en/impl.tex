@@ -52,6 +52,24 @@ $\downarrow$ \\
 \label{fig:architecture}
 \end{figure}
 
+\begin{figure}[H]
+\centering
+\small
+\begin{tabular}{ccc}
+& \fbox{\texttt{Browser (Vue.js)}} & \\
+& $\updownarrow$ HTTP/Thrift & \\
+& \fbox{\texttt{CodeChecker Server (Python)}} & \\
+& $\updownarrow$ SQLAlchemy & \\
+& \fbox{\texttt{Database (SQLite/PostgreSQL)}} & \\
+\\
+\fbox{\texttt{report-converter}} & $\rightarrow$ \texttt{coverage.json} $\rightarrow$ & \fbox{\texttt{CodeChecker store}} \\
+$\uparrow$ & & $\downarrow$ \\
+\texttt{coverage.info} & & Database \\
+\end{tabular}
+\caption{System architecture showing the connections between components. The browser communicates with the server via Thrift RPC over HTTP. The server accesses the database via SQLAlchemy ORM. The \texttt{report-converter} and \texttt{CodeChecker store} are CLI tools that write to the database independently of the server.}
+\label{fig:sysarch}
+\end{figure}
+
 \subsection{Technology Stack}
 
 \begin{itemize}
@@ -330,9 +348,9 @@ def getFilesWithCoverage(self):
                 remoteUrl=f"{ff}/{fh}" if ff > 0 else None))
 \end{lstlisting}
 
-The line count and function statistics are encoded into the \texttt{SourceFileData} response object's optional fields (\texttt{fileContent} for line counts as \texttt{"hit/total"}, \texttt{remoteUrl} for function stats as \texttt{"found/hit"}), avoiding the need to modify the Thrift API definition or regenerate client code.
+The line count and function statistics are encoded into the \texttt{SourceFileData} response object's optional fields (\texttt{fileContent} for line counts as \texttt{"hit/total"}, \texttt{remoteUrl} for function stats as \texttt{"found/hit"}).
 
-Encoding data into existing fields is a pragmatic trade-off. The proper approach would be to define a new Thrift struct (e.g., \texttt{CoverageFileData} with explicit \texttt{lineHit}, \texttt{lineTotal}, \texttt{functionsFound}, \texttt{functionsHit} fields), regenerate the Python server stubs and JavaScript client code, and update all API consumers. This would require the Thrift compiler, which was not available in the development environment, and would affect the generated API packages distributed to all CodeChecker installations. The field-encoding approach achieves the same result with zero changes to the Thrift IDL, at the cost of a less self-documenting API. For a feature that is still being validated, this trade-off is appropriate---the encoding can be replaced with proper Thrift types once the feature is stable and the API contract is finalized.
+Encoding data into existing fields is a pragmatic trade-off. The Thrift IDL (\texttt{report\_server.thrift}) was modified to add the new API methods (\texttt{getTestCoverage}, \texttt{getFilesWithCoverage}), and the Python server stubs were regenerated accordingly. However, defining a new return type (e.g., \texttt{CoverageFileData} with explicit \texttt{lineHit}, \texttt{lineTotal}, \texttt{functionsFound}, \texttt{functionsHit} fields) would also require regenerating the JavaScript client library used by the Vue.js frontend. By reusing the existing \texttt{SourceFileData} struct and encoding the statistics into its optional string fields, the frontend can parse the data without regenerating the JavaScript Thrift client. This is a temporary solution---once the feature is stable, a dedicated Thrift struct should replace the field encoding.
 
 \section{Frontend Implementation}
 
@@ -388,7 +406,7 @@ This section describes the key design crossroads encountered during development 
 
 The most defining decision of the project concerned the scope of integration. The initial plan was ambitious: the user would provide only source code, and CodeChecker would handle the entire pipeline---compiling with coverage flags, executing the program, collecting \texttt{.gcda} files, running \texttt{lcov}, parsing the output, and storing the results. This would have made coverage a first-class feature, as simple as running \texttt{CodeChecker analyze}.
 
-After extensive investigation, this approach proved fundamentally incompatible with CodeChecker's architecture. The core issue is that CodeChecker's workflow is built around the \emph{compilation database} (\texttt{compile\_commands.json}), which records how each source file is compiled but contains no information about how to \emph{execute} the resulting software. As my supervisor explained:
+After extensive investigation, this approach proved fundamentally incompatible with CodeChecker's architecture. The core issue is that CodeChecker's workflow is built around the \emph{compilation database} (\texttt{compile\_commands.json}), which records how each source file is compiled but contains no information about how to \emph{execute} the resulting software. The fundamental limitation is best illustrated by the following observation:
 
 \begin{quote}
 ``The \texttt{CodeChecker analyze} command loops through the list of compilation actions and gives them to the static analyzers to read the source codes. However, a dynamic analyzer needs to \emph{run} the program. But in the compilation database there is no information about how to execute the software. Even worse, the compilation database doesn't even necessarily contain the command which produces an executable file. It is also possible that the project consists of multiple executables. How should an analyzer know which executables are to be run?''
@@ -410,7 +428,7 @@ The second decision concerned how to store coverage data. Two approaches were co
 
 Option B was chosen for consistency with CodeChecker's patterns and for future extensibility. The \texttt{test\_coverage} table stores one row per instrumentable line, with the sign encoding (positive = covered, negative = uncovered) added later to support accurate visualization without fetching source content.
 
-The trade-off is storage volume: the xerces-c project produces 66,649 rows in \texttt{test\_coverage} plus 575 rows in \texttt{test\_coverage\_summary}. In practice, this is negligible for SQLite or PostgreSQL, and the indexed \texttt{file\_id} column keeps query times under 100ms even for the full dataset.
+The trade-off is storage volume: the xerces-c project produces 66,649 rows in \texttt{test\_coverage} plus 575 rows in \texttt{test\_coverage\_summary}. In practice, this is negligible for SQLite or PostgreSQL, and the indexed \texttt{file\_id} column keeps query times under 100ms even for the full dataset. A natural future extension would be to add an \texttt{execution\_count} column to \texttt{test\_coverage}, storing the actual number of times each line was executed rather than just the covered/uncovered distinction.
 
 \subsection{Crossroad 3: User Experience Integration}
 
@@ -442,17 +460,18 @@ Performance was measured using the Apache Xerces-C++ project (580 source files, 
 
 \begin{table}[H]
 \centering
-\begin{tabular}{|l|r|l|}
+\small
+\begin{tabular}{|l|r|p{6cm}|}
 \hline
 \textbf{Operation} & \textbf{Time} & \textbf{Notes} \\
 \hline
-LCOV conversion (\texttt{report-converter}) & $<$ 1 s & 93,651-line \texttt{.info} file $\rightarrow$ 414 KB JSON \\
+LCOV conversion & $<$ 1 s & 93K-line \texttt{.info} $\rightarrow$ 414 KB JSON \\
 \hline
-\texttt{CodeChecker store} (with coverage) & $\sim$ 11 s & 580 files, 66,649 DB rows + 575 summaries \\
+\texttt{CodeChecker store} & $\sim$ 11 s & 580 files, 66,649 DB rows \\
 \hline
-\texttt{getFilesWithCoverage} API call & $<$ 0.1 s & Single SQL query, returns all 580 files \\
+\texttt{getFilesWithCoverage} & $<$ 0.1 s & Single SQL query, 580 files \\
 \hline
-Statistics page load (browser) & $<$ 1 s & Single API call, client-side aggregation \\
+Statistics page load & $<$ 1 s & Single API call, client-side tree \\
 \hline
 File-level view load & $<$ 0.5 s & Two API calls (source + coverage) \\
 \hline
@@ -483,8 +502,8 @@ The feature was tested end-to-end with the Apache Xerces-C++~\cite{xerces} proje
 \begin{enumerate}
     \item Built xerces-c with \texttt{--coverage} flags (CMake)
     \item Ran all 80 tests via \texttt{ctest} (all passed)
-    \item Captured coverage with \texttt{lcov} (335 \texttt{.gcda} files, 712 source files)
-    \item Converted with \texttt{report-converter -t lcov} (580 files, 40,198 covered lines, 8,981 functions found, 5,952 functions hit)
+    \item Captured coverage with \texttt{lcov} (335 \texttt{.gcda} files, 712 source files in LCOV output)
+    \item Converted with \texttt{report-converter -t lcov} (580 files with coverage data, 40,210 covered lines, 8,981 functions found, 5,952 functions hit). The difference between 712 LCOV source files and 580 stored files is due to system headers and files without any executable lines being filtered out during the store operation.
     \item Stored in CodeChecker and verified via Thrift API and web UI
     \item Confirmed line coloring matches \texttt{lcov} HTML output
 \end{enumerate}
@@ -492,7 +511,9 @@ The feature was tested end-to-end with the Apache Xerces-C++~\cite{xerces} proje
 \subsection{Lessons Learned}
 
 \begin{description}
-    \item[\textbf{isExecutableLine was wrong}] The original frontend used heuristic pattern matching to guess which lines are executable (e.g., skipping comments, closing braces, simple return statements). Comparison with actual LCOV \texttt{DA:} records showed 20+ mismatches per file. The fix was to use LCOV data directly.
+    \item[\textbf{isExecutableLine heuristic was wrong}] The original frontend used a JavaScript function called \texttt{isExecutableLine()} that attempted to determine which source lines are executable by pattern-matching the line content. The heuristic classified lines as non-executable if they matched patterns such as: empty lines, lines starting with \texttt{//} or \texttt{/*} (comments), lines starting with \texttt{\#} (preprocessor directives), lines containing only \texttt{\}} (closing braces), and lines matching \texttt{return <identifier>;} (simple return statements).
+
+    This heuristic produced two types of errors. \emph{False positives}: lines like \texttt{using namespace X;}, \texttt{class Foo \{}, \texttt{public:}, and standalone opening braces \texttt{\{} were classified as executable, but the compiler does not instrument them (no \texttt{DA:} record in LCOV). \emph{False negatives}: lines like \texttt{return fUnicodeForm;} and closing braces of destructors were classified as non-executable by the heuristic's patterns, but the compiler \emph{does} instrument them. Comparing the heuristic against actual LCOV \texttt{DA:} records for \texttt{CreateDOMDocument.cpp} revealed 20 mismatches out of 83 lines the heuristic considered executable (vs.\ 63 actual \texttt{DA:} records). The fix was to store all \texttt{DA:} records (both covered and uncovered) and use them directly for line coloring, eliminating the heuristic entirely.
 
     \item[\textbf{Browser resource limits}] Fetching source content for 580 files in parallel caused \texttt{ERR\_INSUFFICIENT\_RESOURCES}. The fix was server-side aggregation in a single SQL query.
 

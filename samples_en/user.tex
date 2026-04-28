@@ -19,6 +19,16 @@ This feature is designed for software developers, quality assurance engineers, a
 
 The feature is particularly valuable in continuous integration environments where both static analysis and test coverage metrics are regularly monitored.
 
+\section{Motivation: Combining Static Analysis with Coverage}
+
+The primary value of the code coverage visualization feature lies in its integration with CodeChecker's static analysis capabilities. By viewing both static analysis reports and test coverage information in the same interface, developers can:
+
+\begin{itemize}
+    \item Identify code regions with static analysis warnings that lack adequate test coverage, prioritizing these areas for additional testing.
+    \item Verify that code paths flagged by static analyzers are actually exercised by the test suite, helping to distinguish between false positives and genuine issues.
+    \item Make informed decisions about code quality by considering both the presence of static analysis findings and the extent of test coverage in specific code regions.
+\end{itemize}
+
 \section{System Requirements}
 
 \subsection{Minimum Requirements}
@@ -30,7 +40,7 @@ The feature is particularly valuable in continuous integration environments wher
     \item \textbf{Coverage Tools}: 
     \begin{itemize}
         \item \texttt{gcov} (included with GCC/Clang)
-        \item \texttt{lcov} (for processing coverage data)
+        \item \texttt{lcov} (for capturing and aggregating coverage data from \texttt{.gcda} files into a single \texttt{.info} file)
     \end{itemize}
     \item \textbf{Web Browser}: Modern browser with JavaScript enabled (Chrome, Firefox, Safari, or Edge)
     \item \textbf{Database}: PostgreSQL or SQLite (as required by CodeChecker)
@@ -76,11 +86,11 @@ Verify that the required tools are available:
 gcc --version
 gcov --version
 lcov --version
-CodeChecker --version
+CodeChecker version
 report-converter --help
 \end{lstlisting}
 
-\section{Architectural Design Decision}
+\section{Dynamic Analysis in a Static Analysis Tool}
 \label{sec:design-decision}
 
 CodeChecker is fundamentally a \emph{static} analysis tool~\cite{codechecker}: it examines source code without executing it. The standard CodeChecker workflow (\texttt{log} $\rightarrow$ \texttt{analyze} $\rightarrow$ \texttt{store}) relies on a compilation database that describes how to compile each source file, but never executes the resulting binaries.
@@ -139,7 +149,7 @@ For simple single-file projects:
 gcc --coverage -o hello hello.c
 \end{lstlisting}
 
-The \texttt{--coverage} flag instructs the compiler to instrument the binary so it records which lines are executed at runtime. This produces \texttt{.gcno} files containing compile-time metadata.
+The \texttt{--coverage} flag instructs the compiler to instrument the binary so it records which lines are executed at runtime. This produces \texttt{.gcno} files containing compile-time metadata. Both GCC and Clang support this flag.
 
 \subsection{Step 2: Run Tests}
 
@@ -195,6 +205,8 @@ CodeChecker store ./cc_reports -n my-project \
 
 The \texttt{CodeChecker store} command automatically detects the \texttt{coverage/coverage.json} file in the reports directory and stores the coverage data alongside any static analysis results.
 
+Note that static analysis is not required for coverage visualization. If only coverage data is needed, the \texttt{CodeChecker analyze} step can be skipped. However, the source files referenced in \texttt{coverage.json} must be present in CodeChecker's database for coverage data to be associated with them. Running at least one analysis pass that references these files ensures they are stored.
+
 \section{Output Format}
 
 The generated \texttt{coverage.json} file uses a JSON structure mapping absolute file paths to coverage data objects:
@@ -218,7 +230,7 @@ Each entry contains:
     \item \texttt{functions\_hit}: Number of functions that were executed at least once (from LCOV \texttt{FNH:} record)
 \end{itemize}
 
-The converter also supports the legacy format (plain list of covered line numbers) for backward compatibility with older \texttt{coverage.json} files.
+The converter also supports the legacy format for backward compatibility. In the legacy format, each file maps directly to a plain list of covered line numbers (e.g., \texttt{[3, 4, 6, 8, 10]}) without the \texttt{uncovered} or function fields. This format was used by an earlier version of the coverage tool and may still be produced by custom scripts.
 
 \section{Visualizing Coverage in the Web Interface}
 
@@ -229,10 +241,10 @@ The CodeChecker web interface provides two coverage views accessible through the
 The statistics view (\texttt{Statistics} $\rightarrow$ \texttt{Code Coverage}) displays a directory-level overview of coverage data, similar to the LCOV HTML report format:
 
 \begin{itemize}
-    \item \textbf{Directory browsing}: Navigate the project's directory structure with breadcrumb navigation
-    \item \textbf{Line coverage}: Number of covered lines per directory and file, with coverage bar visualization
+    \item \textbf{Directory browsing}: Navigate the project's directory structure with breadcrumb navigation (Figure~\ref{fig:stats_top})
+    \item \textbf{Line coverage}: Number of covered lines per directory and file, with coverage bar visualization (Figure~\ref{fig:stats_files})
     \item \textbf{Function coverage}: Functions found and hit per directory and file, with coverage percentage
-    \item \textbf{File search}: A search field filters the table by file or directory name for quick navigation in large projects
+    \item \textbf{File search}: A search field filters the table by file or directory name for quick navigation in large projects (Figure~\ref{fig:search_filter})
 \end{itemize}
 
 \begin{figure}[H]
@@ -281,16 +293,6 @@ The coloring is based directly on the LCOV \texttt{DA:} records stored in the da
 \label{fig:file_view}
 \end{figure}
 
-\section{Integration with Static Analysis}
-
-The primary value of the code coverage visualization feature lies in its integration with CodeChecker's static analysis capabilities. By viewing both static analysis reports and test coverage information in the same interface, developers can:
-
-\begin{itemize}
-    \item Identify code regions with static analysis warnings that lack adequate test coverage, prioritizing these areas for additional testing.
-    \item Verify that code paths flagged by static analyzers are actually exercised by the test suite, helping to distinguish between false positives and genuine issues.
-    \item Make informed decisions about code quality by considering both the presence of static analysis findings and the extent of test coverage in specific code regions.
-\end{itemize}
-
 \section{Troubleshooting}
 
 \subsection{Common Issues and Solutions}
@@ -304,8 +306,8 @@ The primary value of the code coverage visualization feature lies in its integra
     \textbf{Solution}: 
     \begin{enumerate}
         \item Verify that \texttt{coverage/coverage.json} exists in the reports directory
-        \item Ensure source files are also stored (run static analysis or include a report referencing the files)
-        \item Check the server log for ``Could not match coverage file'' warnings
+        \item Ensure source files are also stored in the database. Coverage data can only be associated with files that CodeChecker already knows about. Run static analysis on the same source files, or store the coverage data together with analysis results in the same \texttt{CodeChecker store} invocation so the source files are uploaded.
+        \item Check the server log for ``Could not match coverage file'' warnings, which indicate that file paths in \texttt{coverage.json} could not be matched to any stored file
     \end{enumerate}
     
     \item[\textbf{Issue}: \texttt{lcov} reports ``Unexpected negative count'']
